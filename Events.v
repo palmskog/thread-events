@@ -1,8 +1,8 @@
-From stdpp Require Import prelude.
+From stdpp Require Import prelude strings.
 
-Variable event : Type.
+Section Events.
 
-Variable event_dec : EqDecision event.
+Context `{EqDecision event}.
 
 Variable event_occ : event -> nat.
 
@@ -64,3 +64,19 @@ simpl in *.
 unfold event_prec in *.
 by lia.
 Qed.
+
+End Events.
+
+Section ThreadStringEvents.
+
+Context `{EqDecision thread}.
+
+Variable thread_event_occ : thread * string -> nat.
+
+Hypothesis thread_event_occ_simul :
+ forall e e' : thread * string,
+  thread_event_occ e = thread_event_occ e' -> e = e'.
+
+#[local] Notation thread_event_prec := (event_prec thread_event_occ).
+
+End ThreadStringEvents.
