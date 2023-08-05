@@ -17,6 +17,12 @@ Definition event_ival : Type := { ee | event_prec ee.1 ee.2 }.
 Definition ival_prec : relation event_ival :=
  fun iv iv' => event_prec (proj1_sig iv).2 (proj1_sig iv').1.
 
+Definition event_ival_prec : event -> event_ival -> Prop :=
+ fun e iv => event_prec e (proj1_sig iv).1.
+
+Definition ival_even_prec : event_ival -> event -> Prop :=
+ fun iv e => event_prec (proj1_sig iv).2 e.
+
 #[export] Instance event_prec_strict_order : StrictOrder event_prec.
 Proof.
 split.
