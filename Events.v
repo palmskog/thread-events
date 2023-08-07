@@ -20,7 +20,7 @@ Definition ival_prec : relation event_ival :=
 Definition event_ival_prec : event -> event_ival -> Prop :=
  fun e iv => event_prec e (proj1_sig iv).1.
 
-Definition ival_even_prec : event_ival -> event -> Prop :=
+Definition ival_event_prec : event_ival -> event -> Prop :=
  fun iv e => event_prec (proj1_sig iv).2 e.
 
 #[export] Instance event_prec_strict_order : StrictOrder event_prec.
@@ -78,5 +78,46 @@ Hypothesis thread_event_occ_simul :
   thread_event_occ e = thread_event_occ e' -> e = e'.
 
 #[local] Notation thread_event_prec := (event_prec thread_event_occ).
+#[local] Notation thread_event_ival := (event_ival thread_event_occ).
+#[local] Notation thread_event_ival_prec := (event_ival_prec thread_event_occ).
+
+#[export] Instance thread_event_prec_strict_order : StrictOrder thread_event_prec.
+Proof. typeclasses eauto. Qed.
+#[export] Instance thread_event_prec_trichotomy : Trichotomy (strict thread_event_prec).
+Proof. apply event_prec_trichotomy, thread_event_occ_simul. Qed.
+
+Section LockOne.
+Variables (A B : thread).
+Hypothesis A_neq_B : A <> B.
+
+Definition A_write_flag_A_true : thread * string := (A, "write(flag[A],true)").
+Definition B_write_flag_B_true : thread * string := (B, "write(flag[B],true)").
+Definition A_read_flag_B_false : thread * string := (A, "read(flag[B],false)").
+Definition B_read_flag_A_false : thread * string := (B, "read(flag[A],false)").
+Definition A_CS : thread * string := (A, "CS").
+Definition B_CS : thread * string := (B, "CS").
+
+(* directly from code *)
+Hypothesis A_write_A_prec_read_A :
+ thread_event_prec A_write_flag_A_true A_read_flag_A_true.
+Hypothesis A_read_A_prec_CS :
+ thread_event_prec A_read_flag_A_true A_CS.
+Hypothesis B_write_B_prec_read_B :
+ thread_event_prec B_write_flag_B_true B_read_flag_B_true.
+Hypothesis B_read_B_prec_CS :
+ thread_event_prec B_read_flag_B_true B_CS.
+
+(* derived from facts in code *)
+Lemma A_write_flag_A_true_prec_A_CS :
+ thread_event_prec A_write_flag_A_true A_CS.
+Proof. eapply StrictOrder_Transitive; eauto. Qed.
+
+Lemma B_write_flag_true_B_prec_B_CS :
+ thread_event_prec B_write_flag_B_true B_CS.
+Proof. eapply StrictOrder_Transitive; eauto. Qed.
+
+Hypothesis A_read_flag_B_false
+
+End LockOne.
 
 End ThreadStringEvents.
