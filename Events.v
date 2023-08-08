@@ -98,14 +98,14 @@ Definition A_CS : thread * string := (A, "CS").
 Definition B_CS : thread * string := (B, "CS").
 
 (* directly from code *)
-Hypothesis A_write_A_prec_read_A :
- thread_event_prec A_write_flag_A_true A_read_flag_A_true.
-Hypothesis A_read_A_prec_CS :
- thread_event_prec A_read_flag_A_true A_CS.
-Hypothesis B_write_B_prec_read_B :
- thread_event_prec B_write_flag_B_true B_read_flag_B_true.
-Hypothesis B_read_B_prec_CS :
- thread_event_prec B_read_flag_B_true B_CS.
+Hypothesis A_write_read_prec :
+ thread_event_prec A_write_flag_A_true A_read_flag_B_false.
+Hypothesis A_read_CS_prec :
+ thread_event_prec A_read_flag_B_false A_CS.
+Hypothesis B_write_read_prec :
+ thread_event_prec B_write_flag_B_true B_read_flag_A_false.
+Hypothesis B_read_CS_pred :
+ thread_event_prec B_read_flag_A_false B_CS.
 
 (* derived from facts in code *)
 Lemma A_write_flag_A_true_prec_A_CS :
@@ -116,7 +116,25 @@ Lemma B_write_flag_true_B_prec_B_CS :
  thread_event_prec B_write_flag_B_true B_CS.
 Proof. eapply StrictOrder_Transitive; eauto. Qed.
 
-Hypothesis A_read_flag_B_false
+(* derived from code *)
+Hypothesis A_read_flag_B_false_prec_B_write_flag_B_true :
+ thread_event_prec A_read_flag_B_false B_write_flag_B_true.
+Hypothesis B_read_flag_A_false_prec_A_write_flag_true :
+ thread_event_prec B_read_flag_A_false A_write_flag_A_true.
+
+Lemma A_write_flag_A_true_cycle :
+ thread_event_prec A_write_flag_A_true A_write_flag_A_true.
+Proof.
+eapply StrictOrder_Transitive; eauto.
+eapply StrictOrder_Transitive; eauto.
+eapply StrictOrder_Transitive; eauto.
+Qed.
+
+Lemma A_write_flag_A_true_cycle_False : False.
+Proof.
+pose proof A_write_flag_A_true_cycle as Hcyc.
+now apply StrictOrder_Irreflexive in Hcyc.
+Qed.
 
 End LockOne.
 
