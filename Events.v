@@ -138,4 +138,40 @@ Qed.
 
 End LockOne.
 
+Section NotSequentiallyConsistent.
+
+Variables (A B : thread).
+Hypothesis A_neq_B : A <> B.
+
+Definition A_p_enq_x : thread * string := (A, "p.enq(x)").
+Definition A_q_enq_x : thread * string := (A, "q.enq(x)").
+Definition A_p_deq_y : thread * string := (A, "p.deq(y)").
+
+Definition B_q_enq_y : thread * string := (B, "q.enq(y)").
+Definition B_p_enq_y : thread * string := (B, "p.enq(y)").
+Definition B_p_deq_x : thread * string := (B, "p.deq(x)").
+
+(* from FIFO property of p and q *)
+Hypothesis B_p_enq_y_prec_A_p_enq_x :
+ thread_event_prec B_p_enq_y A_p_enq_x.
+Hypothesis A_q_enq_x_prec_B_q_enq_y :
+ thread_event_prec A_q_enq_x B_q_enq_y.
+
+(* from program order *)
+Hypothesis A_p_enq_x_prec_A_q_enq_x :
+ thread_event_prec A_p_enq_x A_q_enq_x.
+Hypothesis B_q_enq_y_prec_B_p_enq_y :
+ thread_event_prec B_q_enq_y B_p_enq_y.
+
+Lemma seq_consistency_FIFO_PO_False : False.
+Proof.
+cut (thread_event_prec A_q_enq_x A_q_enq_x).
+- by apply StrictOrder_Irreflexive.
+- eapply StrictOrder_Transitive; eauto.
+  eapply StrictOrder_Transitive; eauto.
+  now apply StrictOrder_Transitive with (y := A_p_enq_x).
+Qed.
+
+End NotSequentiallyConsistent.
+
 End ThreadStringEvents.
