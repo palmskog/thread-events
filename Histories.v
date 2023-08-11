@@ -2,8 +2,7 @@ From stdpp Require Import prelude strings.
 
 Section Histories.
 
-Context `{!EqDecision thread}.
-Context `{!EqDecision object, !EqDecision method}.
+Context `{!EqDecision thread, !EqDecision object, !EqDecision method}.
 Context `{!EqDecision argument, !EqDecision result, !EqDecision exception}.
 
 Inductive res :=
@@ -16,17 +15,27 @@ Record invocation := {
  invoc_args : list argument;
 }.
 
+Definition thread_invocation : Type := thread * invocation.
+
 Record response := {
  resp_object : object;
  resp_res : res;
  resp_results : list result
 }.
 
-Definition H :=
- list (thread * (invocation + response)).
+Definition thread_response : Type := thread * response.
 
-Definition invoc_resp_match (i : invocation) (r : response) : Prop :=
+Definition event : Type := thread_invocation + thread_response.
+
+Definition H : Type := list event.
+
+Definition invoc_resp_match
+ (i : invocation) (r : response) : Prop :=
  invoc_object i = resp_object r.
+
+Definition thread_invoc_resp_match
+ (ti : thread_invocation) (tr : thread_response) : Prop :=
+ ti.1 = tr.1 /\ invoc_resp_match ti.2 tr.2.
 
 #[export] Instance list_argument_eq_dec : EqDecision (list argument).
 Proof. typeclasses eauto. Qed.
@@ -65,20 +74,28 @@ unfold invoc_resp_match.
 typeclasses eauto.
 Qed.
 
-Print inr.
+#[export] Instance thread_invoc_resp_match_dec
+ (ti : thread_invocation) (tr : thread_response) :
+ Decision (thread_invoc_resp_match ti tr).
+Proof.
+unfold thread_invoc_resp_match.
+typeclasses eauto.
+Qed.
 
-Definition method_call : Type := invocation * (option response).
+Definition method_call : Type := thread_invocation * (option thread_response).
 
-Fixpoint invocation_response (t : thread) (i : invocation) (h : H) : option response :=
+Fixpoint thread_invocation_response (ti : thread_invocation)
+ (h : H) : option thread_response :=
 match h with
-| (t', inr r) :: h' =>
-  if decide (t' = t /\ invoc_resp_match i r) then Some r
-  else invocation_response t i h'
-| (_, _) :: h' => invocation_response t i h'
+| inr tr :: h' =>
+  if decide (thread_invoc_resp_match ti tr) then Some tr
+  else thread_invocation_response ti h'
+| _ :: h' => thread_invocation_response ti h'
 | [] => None
 end.
 
 (* dangling responses are ruled out at generation time *)
+(*
 Fixpoint complete_invoc (h : H) : H :=
 match h with
 | (t, inl i) :: h' =>
@@ -89,40 +106,88 @@ match h with
 | ev :: h' => ev :: complete_invoc h'
 | [] => []
 end.
+*)
 
+(* FIXME *)
+(*
 Definition pending_invocation (h : H) (i : invocation) : Prop :=
  exists t, (t, inl i) ∈ h.
+*)
  
+(*
 Definition pending_method_call (h : H) (mc : method_call) : Prop :=
  pending_invocation h mc.1.
+*)
 
-Definition thread_subhistory (h : H) (t : thread) :=
- filter (fun '(t', ev) => t = t') h.
-
-Definition event_object (ev : invocation + response) : object :=
+Definition event_thread (ev : event) : thread :=
 match ev with
-| inl i => invoc_object i
-| inr r => resp_object r
+| inl (t,_) => t
+| inr (t,_) => t
 end.
 
-Definition object_subhistory (h : H) (o : object) :=
- filter (fun '(t', ev) => event_object ev = o) h.
+Definition event_object (ev : event) : object :=
+match ev with
+| inl (_,i) => invoc_object i
+| inr (_,r) => resp_object r
+end.
+
+Definition thread_subhistory (h : H) (t : thread) : H :=
+ filter (fun ev => event_thread ev = t) h.
+
+Definition object_subhistory (h : H) (o : object) : H :=
+ filter (fun ev => event_object ev = o) h.
 
 Definition equivalent_history (h h' : H) : Prop :=
  forall (t : thread), thread_subhistory h t = thread_subhistory h' t.
 
 Fixpoint sequential_history (h : H) : Prop :=
 match h with
-| (t, inl i) :: (t', inr r) :: h' =>
-  t = t' /\ invoc_resp_match i r /\ sequential_history h'
-| (t, inl i) :: [] => True
+| inl ti :: inr tr :: h' => thread_invoc_resp_match ti tr /\ sequential_history h'
+| inl ti :: [] => True
+| [] => True
+| _ => False
+end.
+
+Fixpoint sequential_invoc_resp (l : list (invocation + response)) : Prop :=
+match l with
+| inl i :: inr r :: l' => invoc_resp_match i r /\ sequential_invoc_resp l'
+| inl i :: [] => True
+| [] => True
 | _ => False
 end.
 
 Section Legal.
 
-Variable legal_sequential_history : object -> list (invocation + response) -> Prop.
-Context `{forall o l, Decision (legal_sequential_history o l)}.
+Variable sequential_specification : object -> list (invocation + response) -> Prop.
+Context `{forall o l, Decision (sequential_specification o l)}.
+
+Hypothesis sequential_specification_sequential_invoc_resp : 
+ forall o l, sequential_specification o l -> sequential_invoc_resp l.
+
+Definition event_invocation_response (e : event) : invocation + response :=
+match e with
+| inl (_,i) => inl i
+| inr (_,r) => inr r
+end. 
+
+Definition legal_sequential_history (h : H) : Prop :=
+  sequential_history h /\
+  forall o, sequential_specification o (map event_invocation_response (object_subhistory h o)).
+
+Definition extension (h h' : H) : Prop := True.
+
+Definition complete (h : H) : H := h.
+
+Definition method_call_prec_same (h h' : H) : Prop := True.
+
+Definition linearization (h : H) (s : H) : Prop :=
+ legal_sequential_history s /\
+ exists h', extension h h' /\
+  equivalent_history s (complete h') /\
+  method_call_prec_same h s.
+
+Definition linearizable (h : H) : Prop :=
+ exists s, linearization h s.
 
 End Legal.
 
