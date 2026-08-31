@@ -3,7 +3,7 @@ From stdpp Require Import prelude strings.
 Section Histories.
 
 Context `{!EqDecision thread, !EqDecision object, !EqDecision method}.
-Context `{!EqDecision argument, !EqDecision result, !EqDecision exception}.
+Context `{!EqDecision argument, !EqDecision rest, !EqDecision exception}.
 
 Inductive res :=
 | res_OK : res
@@ -20,7 +20,7 @@ Definition thread_invocation : Type := thread * invocation.
 Record response := {
  resp_object : object;
  resp_res : res;
- resp_results : list result
+ resp_results : list rest
 }.
 
 Definition thread_response : Type := thread * response.
@@ -40,7 +40,7 @@ Definition thread_invoc_resp_match
 #[export] Instance list_argument_eq_dec : EqDecision (list argument).
 Proof. typeclasses eauto. Qed.
 
-#[export] Instance list_result_eq_dec : EqDecision (list result).
+#[export] Instance list_result_eq_dec : EqDecision (list rest).
 Proof. typeclasses eauto. Qed.
 
 #[export] Instance invocation_eq_dec : EqDecision invocation.
